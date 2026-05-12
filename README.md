@@ -1,2 +1,2 @@
 # NeionLauncher
-&lt;25KB size Android Launcher
+Basically an AppList with Hide and Favorite options. Do you need anything else?
