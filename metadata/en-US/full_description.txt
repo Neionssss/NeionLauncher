@@ -1,0 +1,1 @@
+Basically an AppList with Hide and Favorite options. Do you need anything else?
