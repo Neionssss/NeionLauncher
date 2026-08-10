@@ -121,6 +121,7 @@ public class MainActivity extends Activity {
                 refreshAppList();
             }
         });
+        registerPackageReceiver();
 
         rv.post(this::loadInstalledApps);
     }
@@ -132,7 +133,7 @@ public class MainActivity extends Activity {
         hiddenSet = readSet(hiddenStr);
         favorites = readSet(favoriteStr);
 
-        registerPackageReceiver();
+
         refreshAppList();
     }
 
