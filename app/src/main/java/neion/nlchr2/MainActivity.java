@@ -30,6 +30,7 @@ import java.util.Set;
 
 public class MainActivity extends Activity {
 
+    private final List<AppItem> allApps = new ArrayList<>();
     private AppAdapter adapter;
     private SharedPreferences prefs;
     private final String hiddenStr = "hidden_list";
@@ -39,28 +40,48 @@ public class MainActivity extends Activity {
     private ImageView eyeLine;
     private BiometricPrompt biometricPrompt;
 
-    private SharedPreferences getPrefs() {
-        if (prefs == null) prefs = getSharedPreferences("nl_prefs", MODE_PRIVATE);
-        return prefs;
-    }
-
     private final BiometricPrompt.AuthenticationCallback authCallback = new BiometricPrompt.AuthenticationCallback() {
         @Override
         public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
             eyeLine.setVisibility(View.GONE);
-            loadInstalledApps();
+            refreshAppList();
         }
     };
 
     private final BroadcastReceiver packageReceiver = new BroadcastReceiver() {
         @Override
-        public void onReceive(Context context, Intent intent) {loadInstalledApps();}
+        public void onReceive(Context context, Intent intent) {
+            loadInstalledApps();
+        }
     };
+
+    private SharedPreferences getPrefs() {
+        if (prefs == null) prefs = getSharedPreferences("nl_prefs", MODE_PRIVATE);
+        return prefs;
+    }
 
     private Set<String> readSet(String key) {
         Set<String> set = getPrefs().getStringSet(key, null);
         if (set == null || set.isEmpty()) return new HashSet<>();
         return new HashSet<>(set);
+    }
+
+    private void loadInstalledApps() {
+        var intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+
+        List<ResolveInfo> resolved;
+        if (Build.VERSION.SDK_INT >= 33) {
+            resolved = getPackageManager().queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0));
+        } else {
+            resolved = getPackageManager().queryIntentActivities(intent, 0);
+        }
+
+        PackageManager pm = getPackageManager();
+        allApps.clear();
+
+        for (var ri : resolved) allApps.add(new AppItem(ri.loadLabel(pm), ri.activityInfo.packageName, ri.loadIcon(pm)));
+        refreshAppList();
     }
 
     @Override
@@ -80,58 +101,66 @@ public class MainActivity extends Activity {
         );
         rv.setAdapter(adapter);
 
+        eyeLine.setImageDrawable(getDrawable(R.drawable.eye_line));
+
+        setupBiometric();
+
         FrameLayout eyeContainer = findViewById(R.id.eyeContainer);
         eyeContainer.setOnClickListener(v -> {
-            if (eyeLine.getVisibility() == View.VISIBLE) {
-                if (canUseBiometric()) {
-                    biometricPrompt.authenticate(new CancellationSignal(), getMainExecutor(), authCallback);
-                } else eyeLine.setVisibility(View.GONE);
-            } else eyeLine.setVisibility(View.VISIBLE);
-            loadInstalledApps();
+            if (eyeLine.getVisibility() != View.VISIBLE) {
+                eyeLine.setVisibility(View.VISIBLE);
+                refreshAppList();
+                return;
+            }
+
+            BiometricManager bm = getSystemService(BiometricManager.class);
+            if (bm != null && bm.canAuthenticate(BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS) {
+                biometricPrompt.authenticate(new CancellationSignal(), getMainExecutor(), authCallback);
+            } else {
+                eyeLine.setVisibility(View.GONE);
+                refreshAppList();
+            }
         });
+
+        rv.post(this::loadInstalledApps);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
 
         hiddenSet = readSet(hiddenStr);
         favorites = readSet(favoriteStr);
 
-        eyeLine.setImageDrawable(getDrawable(R.drawable.eye_line));
-        setupBiometric();
         registerPackageReceiver();
-
-        rv.post(this::loadInstalledApps);
+        refreshAppList();
     }
 
     private void registerPackageReceiver() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_PACKAGE_ADDED);
         filter.addAction(Intent.ACTION_PACKAGE_REMOVED);
+        filter.addAction(Intent.ACTION_PACKAGE_CHANGED);
         filter.addDataScheme("package");
         registerReceiver(packageReceiver, filter);
     }
 
-    private void loadInstalledApps() {
-        var intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-
-        List<ResolveInfo> resolved;
-        if (Build.VERSION.SDK_INT >= 33) {
-            resolved = getPackageManager().queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0));
-        } else {
-            resolved = getPackageManager().queryIntentActivities(intent, 0);
-        }
-
-        Set<String> hidden = hiddenSet;
-        Set<String> favs = favorites;
+    private void refreshAppList() {
         boolean showAll = eyeLine.getVisibility() == View.GONE;
+        List<AppItem> filteredApps = new ArrayList<>();
 
-        var apps = new ArrayList<AppItem>();
-        for (var ri : resolved) {
-            if (showAll || !hidden.contains(ri.activityInfo.packageName)) apps.add(new AppItem(ri.loadLabel(getPackageManager()), ri.activityInfo.packageName, ri.loadIcon(getPackageManager())));
+        for (AppItem app : allApps) {
+            if (showAll || !hiddenSet.contains(app.pkg)) filteredApps.add(app);
         }
-        apps.sort((a, b) -> Boolean.compare(
-                !favs.contains(a.getPkg()),
-                !favs.contains(b.getPkg())
-        ));
-        adapter.update(apps, hidden, favs);
+
+        filteredApps.sort((a, b) -> Boolean.compare(!favorites.contains(a.pkg), !favorites.contains(b.pkg)));
+        adapter.update(filteredApps, hiddenSet, favorites);
+    }
+
+    private void toggleSet(Set<String> set, String pkg, String key) {
+        if (!set.add(pkg)) set.remove(pkg);
+        getPrefs().edit().putStringSet(key, new HashSet<>(set)).apply();
+        refreshAppList();
     }
 
     private void popupMenu(View view, String pkg) {
@@ -158,16 +187,6 @@ public class MainActivity extends Activity {
         popup.show();
     }
 
-    private void toggleSet(Set<String> set, String pkg, String key) {
-        if (!set.add(pkg)) set.remove(pkg);
-        getPrefs().edit().putStringSet(key, set).apply();
-        loadInstalledApps();
-    }
-
-    private boolean canUseBiometric() {
-        return getSystemService(BiometricManager.class).canAuthenticate(BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS;
-    }
-
     private void setupBiometric() {
         int authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
         biometricPrompt = new BiometricPrompt.Builder(this).setTitle("Verify that it's you").setAllowedAuthenticators(authenticators).build();
@@ -178,8 +197,8 @@ public class MainActivity extends Activity {
     public void onBackPressed() {}
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onStop() {
+        super.onStop();
         unregisterReceiver(packageReceiver);
     }
 }

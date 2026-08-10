@@ -71,11 +71,11 @@ public class AppAdapter extends BaseAdapter {
         }
 
         AppItem app = getItem(position);
-        String pkg = app.getPkg();
+        String pkg = app.pkg;
 
-        holder.label.setText(app.getLabel());
+        holder.label.setText(app.label);
         holder.label.setTextColor(favoritePkgs.contains(pkg) ? Color.YELLOW : Color.WHITE);
-        holder.icon.setImageDrawable(app.getIcon());
+        holder.icon.setImageDrawable(app.icon);
 
         float alpha = hiddenPkgs.contains(pkg) ? 0.5f : 1f;
         holder.icon.setAlpha(alpha);
