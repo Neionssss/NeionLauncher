@@ -91,6 +91,7 @@ public class MainActivity extends Activity {
 
         ListView rv = findViewById(R.id.rvApps);
         eyeLine = findViewById(R.id.eyeLine);
+        registerPackageReceiver();
 
         adapter = new AppAdapter(this,
                 pkg -> {
@@ -121,7 +122,7 @@ public class MainActivity extends Activity {
                 refreshAppList();
             }
         });
-        registerPackageReceiver();
+
 
         rv.post(this::loadInstalledApps);
     }
@@ -132,7 +133,6 @@ public class MainActivity extends Activity {
 
         hiddenSet = readSet(hiddenStr);
         favorites = readSet(favoriteStr);
-
 
         refreshAppList();
     }
@@ -198,8 +198,8 @@ public class MainActivity extends Activity {
     public void onBackPressed() {}
 
     @Override
-    protected void onStop() {
-        super.onStop();
+    protected void onDestroy() {
+        super.onDestroy();
         unregisterReceiver(packageReceiver);
     }
 }
