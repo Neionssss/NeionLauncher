@@ -10,6 +10,11 @@ android {
         exclude 'kotlin/**'
     }
 
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId "neion.nlchr2"
         minSdk 30
