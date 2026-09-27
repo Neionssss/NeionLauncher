@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
 
     private void setupBiometric() {
         int authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
-        biometricPrompt = new BiometricPrompt.Builder(this).setTitle("Verify that it's you").setAllowedAuthenticators(authenticators).build();
+        biometricPrompt = new BiometricPrompt.Builder(this).setTitle("Verify identity").setAllowedAuthenticators(authenticators).build();
     }
 
     @SuppressLint("GestureBackNavigation")
