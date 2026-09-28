@@ -33,9 +33,4 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-
-    dependencies {
-        debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.14'
-    }
-
 }
