@@ -1,1 +1,3 @@
 Basically an AppList with Hide and Favorite options. Do you need anything else?
+
+On some Chinese phones, the app could restart itself with home button press
