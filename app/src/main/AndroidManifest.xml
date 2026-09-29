@@ -7,7 +7,7 @@
     </queries>
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <application
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:theme="@style/Theme.nlchr"
         android:label="NeionLauncher"
         android:icon="@mipmap/nll">
 
